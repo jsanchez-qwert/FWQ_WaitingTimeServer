@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../FWQ_Sensor/.idea/FWQ_Sensor.iml" filepath="$PROJECT_DIR$/../FWQ_Sensor/.idea/FWQ_Sensor.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/FWQ_WaitingTimeServer.iml" filepath="$PROJECT_DIR$/.idea/FWQ_WaitingTimeServer.iml" />
     </modules>
   </component>

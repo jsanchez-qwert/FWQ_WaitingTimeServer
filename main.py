@@ -1,29 +1,76 @@
+"""
+    Servidor de tiempos de espera
+    *   recibe señales de los sensores por KAFA
+    *   envia a peticion los timepos calculados al FWQ_Engine
+    tendra dos threads:
+    uno que recibe las informacion de KAFA y calcula el timepo de espera
+    otro que recibe peticiones y envia los timpos calculados
+
+    Habra una variable globl que compartan con los timpos de todas las
+    atracciones
+
+    topic de sensores: 'atracciones'
+
+    TODO controlador de señal SIGINT para detener el servicio como en FWQ_Sensor
+    TODO crear Threads conforme se dockes de forma concurrente ¿?
+    TODO cread comunicacion con FWQ Engine
+"""
+
 import re
 import threading
+import traceback
 from sys import argv
 import time
 import kafka
 import socket
 
+from kafka import KafkaConsumer
 
-class Producer(threading.Thread):
-    def __init__(self):
+
+def tiempo(valor: int) -> int:
+    """
+    Calcula el timepo de espera segun el numero de personas en la cola
+    :param valor: numero de personas en cola
+    """
+    return valor
+
+
+class LectorSensores(threading.Thread):
+    def __init__(self, ip, port):
+        self.ip = ip
+        self.port = port
         threading.Thread.__init__(self)
         self.stop_event = threading.Event()
 
     def stop(self):
         self.stop_event.set()
 
-    def run(self):
-        print("INICIO READER")
-        global a
+    def consumir(self, consumer):
+        global TIEMPOS_ESPERA
         while not self.stop_event.is_set():
-            print("prod")
-            a += 1
-            time.sleep(1)
+            for msg in consumer:
+                atraccion = msg.value.split(b" ")[0]
+                valor = int(msg.value.split(b" ")[1])
+                TIEMPOS_ESPERA[atraccion] = tiempo(valor)
+
+    def run(self):
+        print("INICIO LectorSensores")
+        try:
+            consumer = KafkaConsumer(bootstrap_servers=f'{self.ip}:{self.port}',
+                                     auto_offset_reset='earliest',
+                                     consumer_timeout_ms=500)
+            consumer.subscribe(['atracciones'])
+            self.consumir(consumer)
+        except Exception as e:
+            print("ERROR EN LectorSensores :", e)
+            traceback.print_exc()
+        finally:
+            if 'consumer' in locals():
+                consumer.close()
+            print("FIN LectorSensores")
 
 
-class Reader(threading.Thread):
+class AtiendeEngine(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
         self.stop_event = threading.Event()
@@ -37,19 +84,6 @@ class Reader(threading.Thread):
         while not self.stop_event.is_set():
             print(f"lee : {a}")
             time.sleep(1)
-
-
-def hilo_modifica():
-    global a
-    while True:
-        a += 1
-        time.sleep(1)
-
-
-def hilo_lee():
-    while True:
-        print("lee: ", a)
-        time.sleep(1)
 
 
 def filtra(args: list) -> bool:
@@ -81,25 +115,24 @@ if __name__ == '__main__':
         print("Example: sensor.py 192.168.56.33:9092 02")
         exit()
 
+    ip_kafka = argv[2].split(":")[0]
+    port_kafka = int(argv[2].split(":")[1])
+    port_escucha = int(argv[1])
+
     print("INICIO MAIN")
     a = 0
-    hilos = [Producer(), Reader()]
+    TIEMPOS_ESPERA = {}  # { atraccion: timepo, ... }
+
+    hilos = [LectorSensores(ip_kafka, port_kafka)]
     for i in hilos:
         i.start()
-    time.sleep(5)
+
+    time.sleep(10)
+
     for i in hilos:
         i.stop()
+
     for i in hilos:
         i.join()
 
-    """
-    t1 = threading.Thread(target=hilo_modifica)
-    t2 = threading.Thread(target=hilo_lee)
-    t1.start()
-    t2.start()
-    time.sleep(15)
-    print("FIN")
-    t1.join()
-    t2.join()
-    """
     print("FIN MAIN")
