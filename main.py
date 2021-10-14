@@ -6,16 +6,49 @@ import kafka
 import socket
 
 
+class Producer(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.stop_event = threading.Event()
+
+    def stop(self):
+        self.stop_event.set()
+
+    def run(self):
+        print("INICIO READER")
+        global a
+        while not self.stop_event.is_set():
+            print("prod")
+            a += 1
+            time.sleep(1)
+
+
+class Reader(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.stop_event = threading.Event()
+
+    def stop(self):
+        self.stop_event.set()
+
+    def run(self):
+        print("INICIO READER")
+        global a
+        while not self.stop_event.is_set():
+            print(f"lee : {a}")
+            time.sleep(1)
+
+
 def hilo_modifica():
     global a
-    while True :
+    while True:
         a += 1
         time.sleep(1)
 
 
 def hilo_lee():
-    while True :
-        print("lee: ",a)
+    while True:
+        print("lee: ", a)
         time.sleep(1)
 
 
@@ -48,7 +81,18 @@ if __name__ == '__main__':
         print("Example: sensor.py 192.168.56.33:9092 02")
         exit()
 
+    print("INICIO MAIN")
     a = 0
+    hilos = [Producer(), Reader()]
+    for i in hilos:
+        i.start()
+    time.sleep(5)
+    for i in hilos:
+        i.stop()
+    for i in hilos:
+        i.join()
+
+    """
     t1 = threading.Thread(target=hilo_modifica)
     t2 = threading.Thread(target=hilo_lee)
     t1.start()
@@ -57,5 +101,5 @@ if __name__ == '__main__':
     print("FIN")
     t1.join()
     t2.join()
+    """
     print("FIN MAIN")
-
