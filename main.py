@@ -14,6 +14,9 @@
     TODO controlador de señal SIGINT para detener el servicio como en FWQ_Sensor
     TODO crear Threads conforme se dockes de forma concurrente ¿?
     TODO cread comunicacion con FWQ Engine
+
+    TODO guardar los timepos en un fichero en lugar de en memoria compartida :)
+    TODO comunicacion con FWQ_Engine
 """
 
 import re
@@ -23,6 +26,7 @@ from sys import argv
 import time
 import kafka
 import socket
+import signal
 
 from kafka import KafkaConsumer
 
@@ -46,12 +50,19 @@ class LectorSensores(threading.Thread):
         self.stop_event.set()
 
     def consumir(self, consumer):
-        global TIEMPOS_ESPERA
+        #global TIEMPOS_ESPERA
+        TIEMPOS_ESPERA = {}
         while not self.stop_event.is_set():
             for msg in consumer:
                 atraccion = msg.value.split(b" ")[0]
                 valor = int(msg.value.split(b" ")[1])
                 TIEMPOS_ESPERA[atraccion] = tiempo(valor)
+                self.escribe_tiempos(TIEMPOS_ESPERA)
+
+    def escribe_tiempos(self, TIEMPOS_ESPERA):
+        f = open("./timepos.dat", "+w")
+        f.write(str(TIEMPOS_ESPERA))
+        f.close()
 
     def run(self):
         print("INICIO LectorSensores")
@@ -71,19 +82,38 @@ class LectorSensores(threading.Thread):
 
 
 class AtiendeEngine(threading.Thread):
-    def __init__(self):
+    def __init__(self, ip, port):
         threading.Thread.__init__(self)
         self.stop_event = threading.Event()
+        self.ip = ip
+        self.port = port
 
     def stop(self):
         self.stop_event.set()
 
+    def lee(self) -> dict:
+        f = open("./timepos.dat", "r")
+        TIEMPOS = eval(f.read())
+        f.close()
+        return TIEMPOS
+
     def run(self):
-        print("INICIO READER")
-        global a
+        HEADER = 10
+        print("INICIO AtiendeEngine")
+        servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        servidor.bind((self.ip, self.port))
+        servidor.listen()
         while not self.stop_event.is_set():
-            print(f"lee : {a}")
-            time.sleep(1)
+            conn, addr = servidor.accept()
+            print("iniciada conexion")
+            mensaje = str(self.lee())
+            size = str(len(mensaje)) + ' '*(HEADER - len(str(len(mensaje))))
+            print(repr(size))
+            conn.send(size.encode())
+            print(f"envia: {mensaje}")
+            conn.send(mensaje.encode())
+            print("enviado")
+            conn.close()
 
 
 def filtra(args: list) -> bool:
@@ -123,11 +153,15 @@ if __name__ == '__main__':
     a = 0
     TIEMPOS_ESPERA = {}  # { atraccion: timepo, ... }
 
-    hilos = [LectorSensores(ip_kafka, port_kafka)]
+    hilos = [
+        LectorSensores(ip_kafka, port_kafka),
+        AtiendeEngine('localhost',port_escucha)
+    ]
+
     for i in hilos:
         i.start()
 
-    time.sleep(10)
+    time.sleep(10000)
 
     for i in hilos:
         i.stop()
