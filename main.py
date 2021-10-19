@@ -18,7 +18,6 @@
     TODO guardar los timepos en un fichero en lugar de en memoria compartida :)
     TODO comunicacion con FWQ_Engine
 """
-
 import re
 import threading
 import traceback
