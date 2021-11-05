@@ -56,6 +56,7 @@ class LectorSensores(threading.Thread):
                 atraccion = msg.value.split(b" ")[0]
                 valor = int(msg.value.split(b" ")[1])
                 TIEMPOS_ESPERA[atraccion] = tiempo(valor)
+                print("leidos: ",TIEMPOS_ESPERA)
                 self.escribe_tiempos(TIEMPOS_ESPERA)
 
     def escribe_tiempos(self, TIEMPOS_ESPERA):
@@ -67,7 +68,7 @@ class LectorSensores(threading.Thread):
         print("INICIO LectorSensores")
         try:
             consumer = KafkaConsumer(bootstrap_servers=f'{self.ip}:{self.port}',
-                                     auto_offset_reset='earliest',
+                                     auto_offset_reset='latest',
                                      consumer_timeout_ms=500)
             consumer.subscribe(['atracciones'])
             self.consumir(consumer)
