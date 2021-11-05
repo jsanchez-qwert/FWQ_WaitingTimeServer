@@ -91,8 +91,13 @@ class AtiendeEngine(threading.Thread):
         self.stop_event.set()
 
     def lee(self) -> dict:
+        TIEMPOS = '{}'
         f = open("./timepos.dat", "r")
-        TIEMPOS = eval(f.read())
+        try:
+            TIEMPOS = eval(f.read())
+        except Exception as e:
+            print("ERROR en lectura: ",e)
+
         f.close()
         return TIEMPOS
 
@@ -103,6 +108,7 @@ class AtiendeEngine(threading.Thread):
         servidor.bind((self.ip, self.port))
         servidor.listen()
         while not self.stop_event.is_set():
+            print("AAAAAAAAAAAAA")
             conn, addr = servidor.accept()
             print("iniciada conexion")
             mensaje = str(self.lee())
