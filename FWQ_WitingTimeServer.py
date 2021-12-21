@@ -145,10 +145,14 @@ def filtra(args: list) -> bool:
 
 
 if __name__ == '__main__':
+    my_ip = socket.gethostbyname(socket.gethostname())
+    print('my_ip: ', my_ip)
+    my_ip = "localhost"
+    my_ip = '127.0.0.1'
     if not filtra(argv):
         print("ERROR: Argumentos incorrectos")
-        print("Usage: sensor.py <ip_servidor:puerto> <id> ")
-        print("Example: sensor.py 192.168.56.33:9092 02")
+        print("Usage: FWQ_WitingTimeServer.py <puerto_escucha> <ip_kafka:puerto> ")
+        print("Example: FWQ_WitingTimeServer.py 6060 192.168.56.33:9092")
         exit()
 
     ip_kafka = argv[2].split(":")[0]
@@ -161,8 +165,11 @@ if __name__ == '__main__':
 
     hilos = [
         LectorSensores(ip_kafka, port_kafka),
-        AtiendeEngine('localhost',port_escucha)
+        AtiendeEngine(my_ip,port_escucha)
     ]
+
+    for i in hilos:
+        i.setDaemon(True)
 
     for i in hilos:
         i.start()
